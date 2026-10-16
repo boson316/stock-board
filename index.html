@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#E9EEF2">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}img{max-width:100%}:root{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}</style>
+<title>存股看板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=Noto+Serif+TC:wght@900&display=swap">
+<style>
+/* Layout: one tall column of big cards, total first, then each stock, then the trend. Built for older eyes on a phone. */
+:root{
+  --bg:#E9EEF2; --card:#FFFFFF; --ink:#0E1B26; --muted:#4A5A68; --line:#C9D3DB;
+  --accent:#1D5A86; --up:#C2261F; --down:#16733A; --up-bg:#FCE9E7; --down-bg:#E3F3E8;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --serif:"Noto Serif TC","PMingLiU",serif;
+  --base:20px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D151C; --card:#16222D; --ink:#F2F6F9; --muted:#AAB8C4; --line:#2D3C49;
+  --accent:#7FB8E2; --up:#FF7A70; --down:#5BD98A; --up-bg:#3A1C1A; --down-bg:#14321F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D151C; --card:#16222D; --ink:#F2F6F9; --muted:#AAB8C4; --line:#2D3C49;
+  --accent:#7FB8E2; --up:#FF7A70; --down:#5BD98A; --up-bg:#3A1C1A; --down-bg:#14321F; color-scheme:dark}
+html{font-size:var(--base)}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:1rem;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--serif);font-weight:900;font-size:1.7rem;margin:0;text-wrap:balance}
+.sizer{display:flex;gap:6px}
+.sizer button{font:700 1rem var(--sans);min-width:56px;min-height:52px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.sizer button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.updated{color:var(--muted);font-size:.95rem;margin-top:-10px}
+.card{background:var(--card);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:14px;border:1px solid var(--line)}
+.label{color:var(--muted);font-weight:700;font-size:1rem}
+.big{font-weight:900;font-size:2.4rem;line-height:1.1}
+.huge{font-weight:900;font-size:2.9rem;line-height:1.05}
+.unit{font-size:1.1rem;font-weight:700;margin-left:4px}
+.up{color:var(--up)} .down{color:var(--down)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-weight:900;font-size:1.25rem;padding:6px 14px;border-radius:999px;width:fit-content}
+.pill.up{background:var(--up-bg)} .pill.down{background:var(--down-bg)}
+.total .row{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline}
+.stock-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.stock-name{font-weight:900;font-size:1.5rem}
+.code{color:var(--muted);font-weight:700;font-size:1.1rem}
+.price-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+dl{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;border-top:2px dashed var(--line);padding-top:14px}
+dl div{min-width:0}
+dt{color:var(--muted);font-weight:700;font-size:.95rem}
+dd{margin:0;font-weight:900;font-size:1.35rem}
+.chart-box{width:100%;overflow:hidden;cursor:pointer;touch-action:pan-y}
+svg text{fill:var(--muted);font-family:var(--sans)}
+.tip{font-size:1.1rem;font-weight:700;min-height:1.6em}
+.legend{color:var(--muted);font-size:.95rem;line-height:1.6}
+.legend b.up,.legend b.down{font-weight:900}
+.pct{display:block;font-size:1.1rem}
+@media (max-width:420px){.huge{font-size:2.4rem}.big{font-size:2rem}}
+</style>
+
+<script id="stock-data" type="application/json">
+{
+  "updatedAt": "2026-10-15 收盤",
+  "holdings": [
+    {"code": "0050", "name": "元大台灣50", "lots": 7, "avgCost": 60.02, "price": 108.9, "prevClose": 113.0},
+    {"code": "00646", "name": "元大S&P500", "lots": 3, "avgCost": 68.55, "price": 78.15, "prevClose": 79.25}
+  ],
+  "history": [
+    {"date": "2026-07-15", "prices": {"0050": 106.3, "00646": 76.55}},
+    {"date": "2026-07-16", "prices": {"0050": 106.4, "00646": 76.85}},
+    {"date": "2026-07-17", "prices": {"0050": 100.15, "00646": 76.05}},
+    {"date": "2026-07-20", "prices": {"0050": 99.2, "00646": 76.1}},
+    {"date": "2026-07-21", "prices": {"0050": 102.5, "00646": 76.15}},
+    {"date": "2026-07-22", "prices": {"0050": 103.85, "00646": 76.45}},
+    {"date": "2026-07-23", "prices": {"0050": 103.9, "00646": 76.1}},
+    {"date": "2026-07-24", "prices": {"0050": 101.7, "00646": 75.5}},
+    {"date": "2026-07-27", "prices": {"0050": 101.45, "00646": 76.2}},
+    {"date": "2026-07-28", "prices": {"0050": 97.15, "00646": 75.15}},
+    {"date": "2026-07-29", "prices": {"0050": 93.7, "00646": 75.55}},
+    {"date": "2026-07-30", "prices": {"0050": 93.5, "00646": 74.8}},
+    {"date": "2026-07-31", "prices": {"0050": 102.85, "00646": 76.2}},
+    {"date": "2026-08-03", "prices": {"0050": 102.0, "00646": 76.8}},
+    {"date": "2026-08-04", "prices": {"0050": 100.65, "00646": 77.7}},
+    {"date": "2026-08-05", "prices": {"0050": 103.8, "00646": 78.95}},
+    {"date": "2026-08-06", "prices": {"0050": 103.3, "00646": 78.45}},
+    {"date": "2026-08-07", "prices": {"0050": 102.85, "00646": 78.25}},
+    {"date": "2026-08-10", "prices": {"0050": 104.25, "00646": 78.7}},
+    {"date": "2026-08-11", "prices": {"0050": 104.6, "00646": 78.75}},
+    {"date": "2026-08-12", "prices": {"0050": 105.2, "00646": 78.35}},
+    {"date": "2026-08-13", "prices": {"0050": 106.7, "00646": 78.45}},
+    {"date": "2026-08-14", "prices": {"0050": 106.4, "00646": 78.6}},
+    {"date": "2026-08-17", "prices": {"0050": 106.45, "00646": 78.2}},
+    {"date": "2026-08-18", "prices": {"0050": 104.9, "00646": 77.25}},
+    {"date": "2026-08-19", "prices": {"0050": 103.1, "00646": 77.1}},
+    {"date": "2026-08-20", "prices": {"0050": 103.8, "00646": 77.55}},
+    {"date": "2026-08-21", "prices": {"0050": 104.65, "00646": 76.75}},
+    {"date": "2026-08-24", "prices": {"0050": 103.8, "00646": 76.75}},
+    {"date": "2026-08-25", "prices": {"0050": 104.4, "00646": 76.95}},
+    {"date": "2026-08-26", "prices": {"0050": 105.9, "00646": 76.95}},
+    {"date": "2026-08-27", "prices": {"0050": 106.05, "00646": 76.95}},
+    {"date": "2026-08-28", "prices": {"0050": 106.95, "00646": 76.85}},
+    {"date": "2026-08-31", "prices": {"0050": 106.25, "00646": 76.75}},
+    {"date": "2026-09-01", "prices": {"0050": 108.45, "00646": 76.55}},
+    {"date": "2026-09-02", "prices": {"0050": 106.8, "00646": 76.25}},
+    {"date": "2026-09-03", "prices": {"0050": 106.2, "00646": 76.5}},
+    {"date": "2026-09-04", "prices": {"0050": 107.9, "00646": 77.55}},
+    {"date": "2026-09-07", "prices": {"0050": 109.9, "00646": 76.85}},
+    {"date": "2026-09-08", "prices": {"0050": 109.65, "00646": 76.5}},
+    {"date": "2026-09-09", "prices": {"0050": 109.65, "00646": 76.1}},
+    {"date": "2026-09-10", "prices": {"0050": 109.15, "00646": 76.0}},
+    {"date": "2026-09-11", "prices": {"0050": 107.7, "00646": 75.85}},
+    {"date": "2026-09-14", "prices": {"0050": 106.9, "00646": 76.15}},
+    {"date": "2026-09-15", "prices": {"0050": 106.25, "00646": 76.2}},
+    {"date": "2026-09-16", "prices": {"0050": 106.9, "00646": 76.1}},
+    {"date": "2026-09-17", "prices": {"0050": 108.05, "00646": 76.3}},
+    {"date": "2026-09-18", "prices": {"0050": 109.85, "00646": 76.6}},
+    {"date": "2026-09-21", "prices": {"0050": 111.35, "00646": 76.8}},
+    {"date": "2026-09-22", "prices": {"0050": 111.85, "00646": 77.6}},
+    {"date": "2026-09-23", "prices": {"0050": 112.45, "00646": 77.6}},
+    {"date": "2026-09-24", "prices": {"0050": 112.4, "00646": 77.15}},
+    {"date": "2026-09-29", "prices": {"0050": 111.3, "00646": 76.9}},
+    {"date": "2026-09-30", "prices": {"0050": 112.05, "00646": 77.15}},
+    {"date": "2026-10-01", "prices": {"0050": 112.9, "00646": 77.5}},
+    {"date": "2026-10-02", "prices": {"0050": 112.8, "00646": 77.25}},
+    {"date": "2026-10-05", "prices": {"0050": 115.95, "00646": 77.25}},
+    {"date": "2026-10-06", "prices": {"0050": 116.5, "00646": 77.85}},
+    {"date": "2026-10-07", "prices": {"0050": 116.05, "00646": 78.15}},
+    {"date": "2026-10-08", "prices": {"0050": 114.95, "00646": 78.35}},
+    {"date": "2026-10-12", "prices": {"0050": 114.8, "00646": 78.8}},
+    {"date": "2026-10-13", "prices": {"0050": 112.4, "00646": 78.65}},
+    {"date": "2026-10-14", "prices": {"0050": 113.0, "00646": 79.25}},
+    {"date": "2026-10-15", "prices": {"0050": 108.9, "00646": 78.15}}
+  ]
+}
+</script>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>我的股票</h1>
+    <div class="sizer" role="group" aria-label="字的大小">
+      <button id="sz-1" data-size="20" type="button">字大</button>
+      <button id="sz-2" data-size="24" type="button">更大</button>
+      <button id="sz-3" data-size="28" type="button">最大</button>
+    </div>
+  </header>
+  <div class="updated" id="updated"></div>
+
+  <section class="card total" aria-label="全部加起來">
+    <div class="label">全部股票現在值多少錢</div>
+    <div class="huge num" id="t-value"></div>
+    <div class="label">買進以來總共</div>
+    <div class="row"><span class="big num" id="t-profit"></span><span class="pill num" id="t-pct"></span></div>
+  </section>
+
+  <div id="stocks" style="display:flex;flex-direction:column;gap:20px"></div>
+
+  <section class="card" aria-label="總獲利走勢">
+    <div class="label">近三個月，總共賺多少</div>
+    <div class="tip num" id="tip">點圖上任何地方看當天金額</div>
+    <div class="chart-box" id="chart"></div>
+  </section>
+
+  <p class="legend">紅色代表賺錢、綠色代表賠錢。1 張 = 1,000 股。金額沒有扣手續費和稅，僅供參考。</p>
+</div>
+
+<script>
+(function(){
+  const SH = 1000;
+  const fmt = n => Math.round(n).toLocaleString('zh-TW');
+  const sign = n => n>0?'+':(n<0?'−':'');
+  const cls = n => n>=0?'up':'down';
+  const arrow = n => n>0?'▲':(n<0?'▼':'');
+  const pct = (a,b) => (a/b*100);
+  const md = s => {const [,m,d]=s.split('-'); return (+m)+'/'+(+d);};
+
+  function render(D){
+    document.getElementById('updated').textContent = '股價更新到：' + D.updatedAt;
+    let cost=0,value=0;
+    const stocksEl=document.getElementById('stocks'); stocksEl.innerHTML='';
+    D.holdings.forEach(h=>{
+      const c=h.lots*SH*h.avgCost, v=h.lots*SH*h.price, p=v-c;
+      cost+=c; value+=v;
+      const card=document.createElement('section');
+      card.className='card';
+      card.innerHTML=`
+        <div class="stock-head"><span class="stock-name">${h.name}</span><span class="code">${h.code}</span></div>
+        <div class="label">現在一股</div>
+        <div class="huge num">${h.price.toFixed(2)}<span class="unit">元</span></div>
+        <dl>
+          <div><dt>持有</dt><dd class="num">${h.lots} 張</dd></div>
+          <div><dt>買進平均</dt><dd class="num">${h.avgCost.toFixed(2)} 元</dd></div>
+          <div><dt>現在值</dt><dd class="num">${fmt(v)} 元</dd></div>
+          <div><dt>賺了</dt><dd class="num ${cls(p)}">${sign(p)}${fmt(Math.abs(p))} 元<span class="pct">${sign(p)}${Math.abs(pct(p,c)).toFixed(1)}%</span></dd></div>
+        </dl>`;
+      stocksEl.appendChild(card);
+    });
+    const profit=value-cost;
+    document.getElementById('t-value').innerHTML=`${fmt(value)}<span class="unit">元</span>`;
+    const tp=document.getElementById('t-profit');
+    tp.textContent=`${sign(profit)}${fmt(Math.abs(profit))} 元`; tp.className='big num '+cls(profit);
+    const tpc=document.getElementById('t-pct');
+    tpc.textContent=`${arrow(profit)} ${Math.abs(pct(profit,cost)).toFixed(1)}%`; tpc.className='pill num '+cls(profit);
+    drawChart(D,cost);
+  }
+
+  function drawChart(D,cost){
+    const hist=[...D.history].sort((a,b)=>a.date.localeCompare(b.date));
+    const chart=document.getElementById('chart'), tip=document.getElementById('tip');
+    if(!hist.length){chart.innerHTML='';tip.textContent='還沒有走勢資料';return;}
+    const cutoff=new Date(hist[hist.length-1].date+'T00:00:00'); cutoff.setMonth(cutoff.getMonth()-3);
+    const pts=hist.filter(r=>new Date(r.date+'T00:00:00')>=cutoff).map(r=>{
+      let v=0; D.holdings.forEach(h=>{const pr=r.prices[h.code]; v+=(pr!=null?pr:h.price)*h.lots*SH;});
+      return {date:md(r.date), profit:v-cost};
+    });
+    const W=600,H=300,L=20,R=20,T=30,B=46;
+    const ys=pts.map(p=>p.profit);
+    let lo=Math.min(...ys), hi=Math.max(...ys);
+    const pad=Math.max((hi-lo)*0.25, Math.abs(hi)*0.05, 1000); lo-=pad; hi+=pad;
+    const x=i=> pts.length===1? W/2 : L+ i*(W-L-R)/(pts.length-1);
+    const y=v=> T+(hi-v)/(hi-lo)*(H-T-B);
+    const line=pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.profit).toFixed(1)}`).join(' ');
+    const area=line+` L${x(pts.length-1).toFixed(1)},${H-B} L${x(0).toFixed(1)},${H-B} Z`;
+    const step=Math.max(1,Math.ceil(pts.length/5));
+    let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="總獲利走勢圖">
+      <line x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}" stroke="var(--line)" stroke-width="2"/>
+      <path d="${area}" fill="var(--accent)" opacity=".12"/>
+      ${[Math.max(...ys),Math.min(...ys)].map((v,k)=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="6 6"/>
+        <text x="${L}" y="${y(v)+(k?24:-8)}" font-size="19" font-weight="700">${k?'最低':'最高'} ${sign(v)}${(Math.abs(v)/10000).toFixed(1)} 萬</text>`).join('')}
+      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>`;
+    pts.forEach((p,i)=>{
+      if(i%step===0||i===pts.length-1){
+        if(i!==pts.length-1 && pts.length-1-i<step/2) return;
+        const anchor=i===0&&pts.length>1?'start':(i===pts.length-1&&pts.length>1?'end':'middle');
+        s+=`<text x="${x(i)}" y="${H-14}" font-size="20" font-weight="700" text-anchor="${anchor}">${p.date}</text>`;
+      }
+    });
+    const n=pts.length-1;
+    s+=`<circle cx="${x(n)}" cy="${y(pts[n].profit)}" r="9" fill="var(--card)" stroke="var(--accent)" stroke-width="4"/>
+        <circle id="marker" r="9" fill="var(--accent)" style="display:none;pointer-events:none"/></svg>`;
+    chart.innerHTML=s;
+    const show=i=>{const p=pts[i]; tip.innerHTML=`${p.date}：總共賺 <span class="${cls(p.profit)}">${sign(p.profit)}${fmt(Math.abs(p.profit))} 元</span>`;};
+    chart.onclick=e=>pick(e);
+    chart.onpointermove=e=>{if(e.pointerType==='mouse') pick(e);};
+    function pick(e){const svg=chart.querySelector('svg'); const b=svg.getBoundingClientRect();
+      const px=(e.clientX-b.left)/b.width*W; let best=0;
+      pts.forEach((p,i)=>{if(Math.abs(x(i)-px)<Math.abs(x(best)-px)) best=i;});
+      show(best); const m=svg.querySelector('#marker'); m.setAttribute('cx',x(best)); m.setAttribute('cy',y(pts[best].profit)); m.style.display='';}
+    show(n);
+  }
+
+  // Embedded data first; on the GitHub site a newer data.json replaces it.
+  render(JSON.parse(document.getElementById('stock-data').textContent));
+  fetch('data.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.holdings) render(d);}).catch(()=>{});
+
+  const btns=[...document.querySelectorAll('.sizer button')];
+  const setSize=px=>{document.documentElement.style.setProperty('--base',px+'px');
+    btns.forEach(b=>b.setAttribute('aria-pressed', String(+b.dataset.size===px)));
+    try{localStorage.setItem('fontSize',px)}catch(e){}};
+  btns.forEach(b=>b.addEventListener('click',()=>setSize(+b.dataset.size)));
+  let saved=20; try{saved=+localStorage.getItem('fontSize')||20}catch(e){}
+  setSize(saved);
+})();
+</script>
+</body>
+</html>

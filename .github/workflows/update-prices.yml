@@ -1,0 +1,37 @@
+name: 更新股價
+
+on:
+  schedule:
+    # 台北時間週一到週五 09:15–13:15 每小時一次，以及 13:45 收盤後（GitHub 用 UTC，可能晚幾分鐘）
+    - cron: "15 1-5 * * 1-5"
+    - cron: "45 5 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 抓最新股價
+        run: python scripts/update_prices.py
+      - name: 有變動才提交
+        run: |
+          if git diff --quiet data.json; then
+            echo "股價沒有變動"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git commit -m "更新股價 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+          git push
